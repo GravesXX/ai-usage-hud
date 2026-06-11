@@ -8,7 +8,7 @@ const baseView = (over: Partial<ProviderView>): ProviderView => ({
 });
 
 describe("buildSnapshot", () => {
-  it("projects views to the versioned contract, dropping runtime-only fields", () => {
+  it("projects views to the versioned contract, dropping runtime-only fields but keeping note", () => {
     const views: ProviderView[] = [
       baseView({
         caption: "max",
@@ -17,7 +17,7 @@ describe("buildSnapshot", () => {
           { id: "weekly", label: "Weekly", usedPercent: 28 },
         ],
         today: { tokens: 2502413, costUSD: 6.54, byModel: { "claude-opus-4-8": 2502413 } },
-        active: { active: true, model: "x" }, note: "ignore me", asOf: 99,
+        active: { active: true, model: "x" }, note: "rate limited — retrying", asOf: 99,
       }),
     ];
     const snap = buildSnapshot(views, 1781186540979);
@@ -31,13 +31,15 @@ describe("buildSnapshot", () => {
           { label: "Weekly", usedPercent: 28, resetsAt: undefined },
         ],
         today: { tokens: 2502413, costUSD: 6.54 },
+        note: "rate limited — retrying",
       },
     ]);
   });
-  it("omits today when the view has none, and caption when absent", () => {
+  it("omits today/caption/note when the view has none", () => {
     const snap = buildSnapshot([baseView({ today: null })], 5);
     expect(snap.providers[0].today).toBeUndefined();
     expect(snap.providers[0].caption).toBeUndefined();
+    expect(snap.providers[0].note).toBeUndefined();
   });
   it("preserves non-ok states for the widget to dim", () => {
     const snap = buildSnapshot([baseView({ state: "unconfigured" })], 5);

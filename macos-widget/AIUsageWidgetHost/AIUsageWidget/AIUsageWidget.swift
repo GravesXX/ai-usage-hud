@@ -27,6 +27,7 @@ struct ProviderSnapshot: Codable, Identifiable {
     let caption: String?
     let windows: [WindowSnapshot]
     let today: TodaySnapshot?
+    let note: String?                // why there are no fresh bars, e.g. "rate limited — retrying"
 }
 
 struct WindowSnapshot: Codable, Identifiable {
@@ -138,8 +139,17 @@ struct SmallView: View {
             Text("⚡ AI Usage").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.accent)
             if let snap = snapshot, !snap.providers.isEmpty {
                 ForEach(snap.providers) { p in
-                    UsageBar(label: shortName(p.displayName), percent: p.windows.first?.usedPercent ?? 0)
-                        .opacity(p.state == "ok" ? 1 : 0.5)
+                    if let w = p.windows.first {
+                        UsageBar(label: shortName(p.displayName), percent: w.usedPercent)
+                            .opacity(p.state == "ok" ? 1 : 0.5)
+                    } else {
+                        // No bar to show (rate limited / refreshing / not set up) — don't fake a 0%.
+                        HStack {
+                            Text(shortName(p.displayName)).font(.system(size: 11)).foregroundStyle(Theme.text)
+                            Spacer()
+                            Text(p.state == "unconfigured" ? "—" : "⋯").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                        }.opacity(0.5)
+                    }
                 }
                 Spacer(minLength: 0)
                 Text(Theme.updatedAgo(snap.updatedAt)).font(.system(size: 9)).foregroundStyle(Theme.muted)
@@ -172,6 +182,9 @@ struct MediumView: View {
                             Text(p.displayName).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.text)
                             if p.state == "unconfigured" {
                                 Text("not set up").font(.system(size: 10)).foregroundStyle(Theme.muted)
+                            } else if p.windows.isEmpty {
+                                // No bars to show (e.g. rate limited / refreshing) — say why.
+                                Text(p.note ?? "no data").font(.system(size: 10)).foregroundStyle(Theme.muted)
                             } else {
                                 ForEach(p.windows) { w in UsageBar(label: w.label, percent: w.usedPercent) }
                                 if let reset = Theme.resetLabel(p.windows.first?.resetsAt) {

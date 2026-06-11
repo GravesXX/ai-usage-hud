@@ -11,6 +11,7 @@ export interface ProviderSnapshot {
   caption?: string;
   windows: WindowSnapshot[];
   today?: TodaySnapshot;
+  note?: string;            // why a provider has no fresh bars, e.g. "rate limited — retrying"
 }
 export interface UsageSnapshot {
   version: number;
@@ -32,6 +33,7 @@ export function buildSnapshot(views: ProviderView[], now: number): UsageSnapshot
       caption: v.caption,
       windows: v.windows.map((w) => ({ label: w.label, usedPercent: w.usedPercent, resetsAt: w.resetsAt })),
       today: v.today ? { tokens: v.today.tokens, costUSD: v.today.costUSD } : undefined,
+      note: v.note,
     })),
   };
 }

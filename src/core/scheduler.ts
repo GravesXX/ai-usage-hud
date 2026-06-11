@@ -84,12 +84,12 @@ export class Scheduler {
             const cooldownSec = Math.min(e.retryAfterSec ?? 300, 3600);
             this.cooldownUntil.set(p.id, now + cooldownSec * 1000);
           }
-          // A 401/403 is almost always the brief window where the CLI's short-lived
-          // token is mid-refresh — calm, self-healing message rather than an alarm.
-          // (It clears automatically on the next successful poll.)
-          const note = e instanceof HttpError && (e.status === 401 || e.status === 403)
-            ? "session expired — auto-refreshing"
-            : (e as Error).message;
+          // Transient failures get calm, self-healing messages (they clear on the
+          // next successful poll); anything else surfaces the raw error.
+          let note: string;
+          if (e instanceof RateLimitedError) note = "rate limited — retrying";
+          else if (e instanceof HttpError && (e.status === 401 || e.status === 403)) note = "session expired — auto-refreshing";
+          else note = (e as Error).message;
           this.update(p.id, { state: this.hasData.has(p.id) ? "stale" : "error", note });
         }
       }

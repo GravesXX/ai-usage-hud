@@ -59,6 +59,12 @@ describe("Scheduler.pollLimitsOnce", () => {
     expect(views.get("fake")!.state).toBe("ok");
     expect(views.get("fake")!.note).toBeUndefined();
   });
+  it("429 surfaces a calm rate-limit note, not a raw error", async () => {
+    const { views, provider, scheduler } = harness();
+    provider.limitsImpl = async () => { throw new RateLimitedError(120); };
+    await scheduler.pollLimitsOnce();
+    expect(views.get("fake")!.note).toBe("rate limited — retrying");
+  });
   it("429 sets cooldown honored until retryAfter elapses", async () => {
     const { provider, clock, scheduler } = harness();
     provider.limitsImpl = async () => { throw new RateLimitedError(120); };
