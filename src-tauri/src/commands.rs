@@ -78,6 +78,11 @@ pub fn check_processes(queries: Vec<ProcQuery>) -> Vec<bool> {
     }).collect()
 }
 
+#[tauri::command]
+pub fn set_window_mode(window: tauri::WebviewWindow, mode: String) -> Result<(), String> {
+    crate::desktop_pin::apply_mode(&window, &mode)
+}
+
 /// GUI apps don't inherit shell PATH, so probe common install locations.
 #[tauri::command]
 pub fn get_cli_version(command: String) -> Option<String> {

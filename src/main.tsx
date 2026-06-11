@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
+import { enable as enableAutostart, isEnabled as autostartEnabled } from "@tauri-apps/plugin-autostart";
 import { TauriBridge } from "./bridge/tauri";
 import { Scheduler } from "./core/scheduler";
 import { hudStore } from "./core/store";
@@ -33,6 +34,16 @@ function watchPosition() {
 }
 void restorePosition().then(() => { watchPosition(); return scheduler.start(); });
 void listen<string>("tray-action", (e) => { if (e.payload === "refresh") scheduler.refreshNow(); });
+
+async function initAutostartDefault() {
+  try {
+    if ((await bridge.readCache("autostart-initialized")) === null) {
+      if (!(await autostartEnabled())) await enableAutostart();
+      await bridge.writeCache("autostart-initialized", "1");
+    }
+  } catch { /* autostart is a nicety; never block startup */ }
+}
+void initAutostartDefault();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode><App /></React.StrictMode>,
