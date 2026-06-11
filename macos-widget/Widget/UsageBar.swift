@@ -3,7 +3,6 @@ import SwiftUI
 struct UsageBar: View {
     let label: String
     let percent: Double
-    var resetISO: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
