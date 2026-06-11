@@ -20,9 +20,16 @@ export class TauriBridge implements NativeBridge {
     try {
       const start = Math.max(0, size - maxBytes);
       await file.seek(start, SeekMode.Start);
-      const buf = new Uint8Array(size - start);
-      await file.read(buf);
-      return new TextDecoder().decode(buf);
+      const want = size - start;
+      const buf = new Uint8Array(want);
+      let filled = 0;
+      while (filled < want) {
+        const chunk = buf.subarray(filled);
+        const n = await file.read(chunk);
+        if (n === null || n === 0) break; // EOF
+        filled += n;
+      }
+      return new TextDecoder().decode(buf.subarray(0, filled));
     } finally {
       await file.close();
     }

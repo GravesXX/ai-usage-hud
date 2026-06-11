@@ -74,11 +74,22 @@ export class NodeBridge implements NativeBridge {
     return results;
   }
   async getCliVersion(command: "claude" | "codex"): Promise<string | null> {
-    try {
-      const { stdout } = await run(command, ["--version"]);
-      const tok = stdout.split(/\s+/).find((t) => /^\d+\.\d+/.test(t));
-      return tok ?? null;
-    } catch { return null; }
+    const home = os.homedir();
+    const candidates = [
+      command,
+      `${home}/.local/bin/${command}`,
+      `/opt/homebrew/bin/${command}`,
+      `/usr/local/bin/${command}`,
+      `${home}/.npm-global/bin/${command}`,
+    ];
+    for (const c of candidates) {
+      try {
+        const { stdout } = await run(c, ["--version"]);
+        const tok = stdout.split(/\s+/).find((t) => /^\d+\.\d+/.test(t));
+        if (tok) return tok;
+      } catch { /* try next candidate */ }
+    }
+    return null;
   }
   async readCache(key: string): Promise<string | null> {
     try { return await fs.readFile(path.join(this.cacheDir, `cache-${key}.json`), "utf8"); }

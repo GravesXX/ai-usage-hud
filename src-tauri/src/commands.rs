@@ -25,6 +25,14 @@ fn current_user() -> String {
 /// to find hashed variants like "Claude Code-credentials-<HASH>" (Claude Code v2.1.52+).
 #[tauri::command]
 pub fn read_keychain(service: String) -> Result<String, String> {
+    // Defense-in-depth: only ever read the credential services this app needs.
+    // (Claude Code stores under "Claude Code-credentials" and v2.1.52+ hashed
+    // variants "Claude Code-credentials-<HASH>". Codex auth is NOT in Keychain —
+    // it lives in ~/.codex/auth.json — so only the Claude prefix is needed.)
+    const ALLOWED_PREFIXES: &[&str] = &["Claude Code-credentials"];
+    if service.len() < 8 || !ALLOWED_PREFIXES.iter().any(|p| service == *p) {
+        return Err("service-not-allowed".into());
+    }
     let account = current_user();
     if let Ok(v) = run_security(&service, &account) {
         return Ok(v);
@@ -37,6 +45,9 @@ pub fn read_keychain(service: String) -> Result<String, String> {
     for line in text.lines() {
         if line.contains("\"svce\"") {
             if let Some(name) = line.split('"').nth(3) {
+                // `service` is allowlisted above, and `name` must start with `service`,
+                // so `name` is also guaranteed to start with an allowed prefix — no
+                // extra check needed here.
                 if name.starts_with(&service) && name != service {
                     if let Ok(v) = run_security(name, &account) {
                         return Ok(v);
@@ -53,7 +64,11 @@ pub struct ProcQuery { pub pattern: String, pub exact: bool }
 
 #[tauri::command]
 pub fn check_processes(queries: Vec<ProcQuery>) -> Vec<bool> {
-    queries.iter().map(|q| {
+    queries.iter().take(16).map(|q| {
+        // Reject overlong or metacharacter-laden patterns (pgrep -f treats pattern as a regex).
+        let safe = q.pattern.len() <= 64
+            && q.pattern.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '/'));
+        if !safe { return false; }
         let flag = if q.exact { "-x" } else { "-f" };
         Command::new("/usr/bin/pgrep")
             .args([flag, &q.pattern])
