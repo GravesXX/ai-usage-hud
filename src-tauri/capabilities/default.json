@@ -43,6 +43,9 @@
         { "path": "$HOME/.codex" },  { "path": "$HOME/.codex/**" }
       ]
     },
+    "core:window:allow-set-position",
+    "core:window:allow-start-dragging",
+    "core:event:default",
     "fs:allow-read",
     "fs:allow-seek",
     {

@@ -1,0 +1,33 @@
+:root {
+  --bg: rgba(38, 38, 36, 0.85);      /* Claude #262624 @ 85% */
+  --text: #faf9f5;
+  --muted: rgba(250, 249, 245, 0.55);
+  --accent: #d97757;                  /* Claude orange */
+  --amber: #ffb224;
+  --red: #e5484d;
+  --green: #46a758;
+  --track: rgba(250, 249, 245, 0.12);
+}
+* { box-sizing: border-box; margin: 0; }
+html, body, #root { background: transparent; }
+body {
+  font: 12px/1.45 -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+.panel { background: var(--bg); border-radius: 12px; padding: 12px 14px; margin: 4px; }
+.panel-header { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 10px; cursor: default; }
+.card { padding: 8px 0; border-top: 1px solid var(--track); }
+.card-stale { opacity: 0.6; }
+.card-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.card-title { font-weight: 600; }
+.caption { color: var(--muted); font-size: 10px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.dot-on { background: var(--green); }
+.bar-row { margin: 5px 0; }
+.bar-meta { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px; }
+.bar-track { height: 5px; border-radius: 3px; background: var(--track); overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+.muted { color: var(--muted); font-size: 10px; margin-top: 3px; }
+.today { color: var(--muted); font-size: 11px; margin-top: 5px; }
