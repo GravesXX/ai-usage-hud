@@ -26,6 +26,7 @@ Refresh now, Launch at login, Quit. The widget is click-through while pinned.
   (the same numbers as `/usage`). Today's stats parsed from `~/.claude/projects` logs.
 - Codex: token from `~/.codex/auth.json` → `chatgpt.com/backend-api/wham/usage`
   (the same numbers as `/status`). Fallback: session logs. Today's stats from session logs.
+- File reads use Tauri's handle-based fs APIs; the path allowlist is enforced at file-open time (`~/.claude`, `~/.codex` for reads, app-data for writes).
 - Tokens are read-only and never refreshed, stored, or sent anywhere else.
   Network egress is allowlisted to those two hosts. No telemetry.
 - Both endpoints are undocumented — expect occasional breakage when they change.
