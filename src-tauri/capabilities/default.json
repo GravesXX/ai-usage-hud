@@ -1,0 +1,64 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://api.anthropic.com/*" },
+        { "url": "https://chatgpt.com/*" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [
+        { "path": "$HOME/.claude" }, { "path": "$HOME/.claude/**" },
+        { "path": "$HOME/.codex" },  { "path": "$HOME/.codex/**" },
+        { "path": "$APPDATA" },      { "path": "$APPDATA/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        { "path": "$HOME/.claude" }, { "path": "$HOME/.claude/**" },
+        { "path": "$HOME/.codex" },  { "path": "$HOME/.codex/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [
+        { "path": "$HOME/.claude" }, { "path": "$HOME/.claude/**" },
+        { "path": "$HOME/.codex" },  { "path": "$HOME/.codex/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-open",
+      "allow": [
+        { "path": "$HOME/.claude" }, { "path": "$HOME/.claude/**" },
+        { "path": "$HOME/.codex" },  { "path": "$HOME/.codex/**" }
+      ]
+    },
+    "core:window:allow-set-position",
+    "core:window:allow-start-dragging",
+    "core:event:default",
+    "fs:allow-read",
+    "fs:allow-seek",
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [ { "path": "$APPDATA" }, { "path": "$APPDATA/**" } ]
+    },
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [ { "path": "$APPDATA" }, { "path": "$APPDATA/**" } ]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [ { "path": "$APPDATA" }, { "path": "$APPDATA/**" } ]
+    }
+  ]
+}
