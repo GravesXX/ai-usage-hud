@@ -14,6 +14,7 @@ export class Scheduler {
   private cooldownUntil = new Map<string, number>();
   private hasData = new Set<string>();
   private timers: Array<ReturnType<typeof setInterval>> = [];
+  private limitsInFlight = false;
   private limitsMs: number; private statsMs: number; private activeMs: number;
   private now: () => number;
 
@@ -53,34 +54,44 @@ export class Scheduler {
         const raw = await this.bridge.readCache(`limits-${p.id}`);
         if (!raw) continue;
         const { windows, asOf } = JSON.parse(raw);
+        if (!Array.isArray(windows)) continue;
         this.hasData.add(p.id);
-        this.update(p.id, { state: "stale", windows, asOf });
+        this.update(p.id, { state: "stale", windows, asOf: typeof asOf === "number" ? asOf : null });
       } catch { /* corrupt cache — ignore, fresh poll will overwrite */ }
     }
   }
 
   async pollLimitsOnce(force = false): Promise<void> {
-    for (const p of this.providers) {
-      const now = this.now();
-      if (!force && (this.cooldownUntil.get(p.id) ?? 0) > now) continue;
-      try {
-        if (!(await p.isConfigured())) {
-          if (!this.hasData.has(p.id)) this.update(p.id, { state: "unconfigured" });
-          continue;
+    if (this.limitsInFlight) return;
+    this.limitsInFlight = true;
+    try {
+      for (const p of this.providers) {
+        const now = this.now();
+        if (!force && (this.cooldownUntil.get(p.id) ?? 0) > now) continue;
+        try {
+          if (!(await p.isConfigured())) {
+            if (!this.hasData.has(p.id)) this.update(p.id, { state: "unconfigured" });
+            continue;
+          }
+          const windows = await p.fetchLimits();
+          this.hasData.add(p.id);
+          this.update(p.id, { state: "ok", windows, asOf: now, caption: p.caption, note: undefined });
+          try {
+            await this.bridge.writeCache(`limits-${p.id}`, JSON.stringify({ windows, asOf: now }));
+          } catch { /* cache persistence is best-effort; the ok view stands */ }
+        } catch (e) {
+          if (e instanceof RateLimitedError) {
+            const cooldownSec = Math.min(e.retryAfterSec ?? 300, 3600);
+            this.cooldownUntil.set(p.id, now + cooldownSec * 1000);
+          }
+          const note = e instanceof CredentialError && e.reason === "expired"
+            ? `re-auth in ${p.displayName}`
+            : (e as Error).message;
+          this.update(p.id, { state: this.hasData.has(p.id) ? "stale" : "error", note });
         }
-        const windows = await p.fetchLimits();
-        this.hasData.add(p.id);
-        this.update(p.id, { state: "ok", windows, asOf: now, caption: p.caption, note: undefined });
-        await this.bridge.writeCache(`limits-${p.id}`, JSON.stringify({ windows, asOf: now }));
-      } catch (e) {
-        if (e instanceof RateLimitedError) {
-          this.cooldownUntil.set(p.id, now + (e.retryAfterSec ?? 300) * 1000);
-        }
-        const note = e instanceof CredentialError && e.reason === "expired"
-          ? `re-auth in ${p.displayName}`
-          : (e as Error).message;
-        this.update(p.id, { state: this.hasData.has(p.id) ? "stale" : "error", note });
       }
+    } finally {
+      this.limitsInFlight = false;
     }
   }
   async pollStatsOnce(): Promise<void> {
