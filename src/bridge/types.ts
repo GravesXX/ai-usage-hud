@@ -9,6 +9,7 @@ export interface NativeBridge {
   readTextFile(path: string): Promise<string>;
   /** Last maxBytes of a file (for cheap model detection on huge transcripts) */
   readFileTail(path: string, maxBytes: number): Promise<string>;
+  /** Recursive file listing filtered by suffix; modifiedAfterMs is INCLUSIVE (mtime >= boundary). All bridge implementations must match. */
   listFilesRecursive(root: string, suffix: string, modifiedAfterMs?: number): Promise<FileInfo[]>;
   fetch(url: string, init: FetchInit): Promise<FetchResult>;
   checkProcesses(queries: ProcQuery[]): Promise<boolean[]>;

@@ -8,6 +8,8 @@ describe("formatCountdown", () => {
   it("renders dash for past/absent", () => {
     expect(formatCountdown(-5)).toBe("—");
   });
+  it("renders dash for zero", () => expect(formatCountdown(0)).toBe("—"));
+  it("renders 1h 0m at exactly one hour", () => expect(formatCountdown(60 * 60_000)).toBe("1h 0m"));
 });
 
 describe("localDayKey", () => {

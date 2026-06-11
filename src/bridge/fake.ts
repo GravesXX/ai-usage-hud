@@ -10,6 +10,9 @@ export class FakeBridge implements NativeBridge {
   home = "/Users/test";
 
   async readKeychain(service: string): Promise<string> {
+    // Mirrors real bridges: stored keychain entries may be the HASHED long form
+    // (e.g. "Claude Code-credentials-a1b2c3"); the query is the short prefix.
+    // So we match when the stored key k starts with the queried service name.
     for (const [k, v] of this.keychain) if (k === service || k.startsWith(service)) return v;
     throw new Error("keychain-not-found");
   }

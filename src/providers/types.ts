@@ -11,7 +11,7 @@ export type ProviderState = "ok" | "stale" | "unconfigured" | "error";
 export interface UsageProvider {
   id: string;
   displayName: string;
-  /** Small caption shown next to the name, e.g. plan type "max"/"plus". Set by fetchLimits. */
+  /** Small caption shown next to the name, e.g. plan type "max"/"plus". */
   caption?: string;
   isConfigured(): Promise<boolean>;
   fetchLimits(): Promise<LimitWindow[]>;
