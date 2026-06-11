@@ -1,6 +1,7 @@
 import type { NativeBridge } from "../../bridge/types";
 import { clampPercent, HttpError, type LimitWindow, RateLimitedError } from "../types";
 import type { CodexAuth } from "./auth";
+import { sessionsDirFor } from "./today-stats";
 
 /** Union of the three observed shapes: REST wham/usage, session-JSONL snapshot, websocket event. */
 export interface CodexRawWindow {
@@ -76,4 +77,27 @@ export async function fetchCodexLimits(
     nowMs,
   );
   return { windows, planType: json?.plan_type ? String(json.plan_type) : undefined };
+}
+
+/** Newest non-null rate_limits from session JSONLs (today, then yesterday). Null if none. */
+export async function codexJsonlFallback(bridge: NativeBridge, nowMs: number): Promise<LimitWindow[] | null> {
+  const home = await bridge.homeDir();
+  const dirs = [new Date(nowMs), new Date(nowMs - 86_400_000)].map((d) => sessionsDirFor(home, d));
+  const fileLists = await Promise.all(dirs.map((d) => bridge.listFilesRecursive(d, ".jsonl")));
+  const files = fileLists.flat().sort((a, b) => b.mtimeMs - a.mtimeMs);
+  for (const f of files) {
+    let tail: string;
+    try { tail = await bridge.readFileTail(f.path, 262_144); } catch { continue; }
+    const lines = tail.split("\n");
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (!lines[i].includes('"rate_limits"')) continue;
+      try {
+        const rl = JSON.parse(lines[i])?.payload?.rate_limits;
+        if (rl?.primary || rl?.secondary) {
+          return normalizeCodexWindows({ primary: rl.primary, secondary: rl.secondary }, f.mtimeMs);
+        }
+      } catch { continue; }
+    }
+  }
+  return null;
 }
