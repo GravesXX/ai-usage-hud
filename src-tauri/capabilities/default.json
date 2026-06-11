@@ -14,22 +14,48 @@
         { "url": "https://chatgpt.com/*" }
       ]
     },
-    "fs:allow-read-text-file",
-    "fs:allow-read-dir",
-    "fs:allow-stat",
-    "fs:allow-exists",
-    "fs:allow-open",
-    "fs:allow-read",
-    "fs:allow-seek",
-    "fs:allow-write-text-file",
-    "fs:allow-mkdir",
     {
-      "identifier": "fs:scope",
+      "identifier": "fs:allow-read-text-file",
       "allow": [
         { "path": "$HOME/.claude" }, { "path": "$HOME/.claude/**" },
         { "path": "$HOME/.codex" },  { "path": "$HOME/.codex/**" },
         { "path": "$APPDATA" },      { "path": "$APPDATA/**" }
       ]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        { "path": "$HOME/.claude" }, { "path": "$HOME/.claude/**" },
+        { "path": "$HOME/.codex" },  { "path": "$HOME/.codex/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [
+        { "path": "$HOME/.claude" }, { "path": "$HOME/.claude/**" },
+        { "path": "$HOME/.codex" },  { "path": "$HOME/.codex/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-open",
+      "allow": [
+        { "path": "$HOME/.claude" }, { "path": "$HOME/.claude/**" },
+        { "path": "$HOME/.codex" },  { "path": "$HOME/.codex/**" }
+      ]
+    },
+    "fs:allow-read",
+    "fs:allow-seek",
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [ { "path": "$APPDATA" }, { "path": "$APPDATA/**" } ]
+    },
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [ { "path": "$APPDATA" }, { "path": "$APPDATA/**" } ]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [ { "path": "$APPDATA" }, { "path": "$APPDATA/**" } ]
     }
   ]
 }
