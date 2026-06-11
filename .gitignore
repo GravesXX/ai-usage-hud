@@ -23,3 +23,9 @@ src-tauri/target
 *.njsproj
 *.sln
 *.sw?
+
+# Xcode
+**/xcuserdata/
+**/*.xcuserstate
+**/DerivedData/
+**/.DS_Store
