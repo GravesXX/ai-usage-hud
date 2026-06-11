@@ -55,6 +55,20 @@ describe("createProviders", () => {
     const w = await codex.fetchLimits();
     expect(w[0]).toMatchObject({ id: "session", usedPercent: 9 });
   });
+  it("codex propagates CredentialError instead of masking with stale JSONL", async () => {
+    const b = bridgeWithBoth();
+    b.files.set("/Users/test/.codex/auth.json", { content: "not json", mtimeMs: 1 });
+    // even with a valid JSONL snapshot present, broken auth must surface
+    const today = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    const dir = `/Users/test/.codex/sessions/${today.getFullYear()}/${p(today.getMonth() + 1)}/${p(today.getDate())}`;
+    b.files.set(`${dir}/rollout-x.jsonl`, {
+      content: JSON.stringify({ payload: { type: "token_count", rate_limits: { primary: { used_percent: 9, window_minutes: 300, resets_at: 1781000000 }, secondary: null } } }),
+      mtimeMs: Date.now(),
+    });
+    const [, codex] = createProviders(b);
+    await expect(codex.fetchLimits()).rejects.toThrow(CredentialError);
+  });
   it("isConfigured false on empty machine", async () => {
     for (const p of createProviders(new FakeBridge())) expect(await p.isConfigured()).toBe(false);
   });
