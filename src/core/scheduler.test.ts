@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FakeBridge } from "../bridge/fake";
 import type { ActiveSession, LimitWindow, TodayStats, UsageProvider } from "../providers/types";
-import { CredentialError, RateLimitedError } from "../providers/types";
+import { HttpError, RateLimitedError } from "../providers/types";
 import { Scheduler } from "./scheduler";
 import type { ProviderView } from "./store";
 
@@ -40,13 +40,24 @@ describe("Scheduler.pollLimitsOnce", () => {
     await scheduler.pollLimitsOnce();
     expect(views.get("fake")!.state).toBe("error");
   });
-  it("success then failure -> stale with note for expired creds", async () => {
+  it("success then 401 -> stale with a calm self-healing auth note (not an alarm)", async () => {
     const { provider, views, scheduler } = harness();
     await scheduler.pollLimitsOnce();
-    provider.limitsImpl = async () => { throw new CredentialError("expired"); };
+    provider.limitsImpl = async () => { throw new HttpError(401); };
     await scheduler.pollLimitsOnce();
     expect(views.get("fake")!.state).toBe("stale");
-    expect(views.get("fake")!.note).toBe("re-auth in Fake");
+    expect(views.get("fake")!.note).toBe("session expired — auto-refreshing");
+  });
+  it("recovers to ok and clears the auth note on the next successful poll", async () => {
+    const { provider, views, scheduler } = harness();
+    await scheduler.pollLimitsOnce();
+    provider.limitsImpl = async () => { throw new HttpError(401); };
+    await scheduler.pollLimitsOnce();
+    expect(views.get("fake")!.note).toBe("session expired — auto-refreshing");
+    provider.limitsImpl = async () => [{ id: "session", label: "S", usedPercent: 2 }];
+    await scheduler.pollLimitsOnce();
+    expect(views.get("fake")!.state).toBe("ok");
+    expect(views.get("fake")!.note).toBeUndefined();
   });
   it("429 sets cooldown honored until retryAfter elapses", async () => {
     const { provider, clock, scheduler } = harness();

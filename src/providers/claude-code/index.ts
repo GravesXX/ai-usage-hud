@@ -1,6 +1,6 @@
 import type { NativeBridge } from "../../bridge/types";
 import { claudeActiveSession } from "../../core/active-session";
-import { CredentialError, type ActiveSession, type LimitWindow, type TodayStats, type UsageProvider } from "../types";
+import type { ActiveSession, LimitWindow, TodayStats, UsageProvider } from "../types";
 import { loadClaudeCredentials } from "./credentials";
 import { fetchClaudeLimits } from "./limits";
 import { claudeTodayStats } from "./today-stats";
@@ -20,7 +20,10 @@ export class ClaudeCodeProvider implements UsageProvider {
   }
   async fetchLimits(): Promise<LimitWindow[]> {
     const creds = await loadClaudeCredentials(this.bridge);
-    if (creds.expiresAt > 0 && creds.expiresAt < Date.now()) throw new CredentialError("expired");
+    // Do NOT pre-reject a clock-expired access token: Claude Code rotates these
+    // short-lived tokens automatically, so an expired-by-clock token is normal and
+    // self-heals. We still never refresh it ourselves — the usage endpoint is the
+    // authority. If the token is genuinely dead it returns 401, handled upstream.
     this.caption = creds.subscriptionType;
     if (!this.cliVersion) this.cliVersion = (await this.bridge.getCliVersion("claude")) ?? FALLBACK_CLI_VERSION;
     return fetchClaudeLimits(this.bridge, creds, this.cliVersion);

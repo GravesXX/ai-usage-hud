@@ -32,12 +32,15 @@ describe("createProviders", () => {
     expect((await codex.fetchLimits()).length).toBe(2);
     expect(codex.caption).toBe("plus");
   });
-  it("claude throws expired for past expiresAt", async () => {
+  it("claude sends a clock-expired access token instead of crying re-auth (server decides)", async () => {
+    // Claude Code rotates short-lived access tokens automatically; a momentarily
+    // clock-expired token is normal and self-heals. We must NOT pre-reject it.
     const b = bridgeWithBoth();
     b.keychain.set("Claude Code-credentials",
-      JSON.stringify({ claudeAiOauth: { accessToken: "tok", expiresAt: 1000 } }));
+      JSON.stringify({ claudeAiOauth: { accessToken: "tok", expiresAt: 1000 } })); // long past
     const [claude] = createProviders(b);
-    await expect(claude.fetchLimits()).rejects.toThrow(CredentialError);
+    const windows = await claude.fetchLimits(); // resolves, does not throw
+    expect(windows.length).toBe(2);
   });
   it("codex falls back to JSONL when endpoint fails", async () => {
     const b = bridgeWithBoth();

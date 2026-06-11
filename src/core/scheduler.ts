@@ -1,5 +1,5 @@
 import type { NativeBridge } from "../bridge/types";
-import { CredentialError, RateLimitedError, type UsageProvider } from "../providers/types";
+import { HttpError, RateLimitedError, type UsageProvider } from "../providers/types";
 import type { ProviderView } from "./store";
 
 export interface SchedulerOpts {
@@ -84,8 +84,11 @@ export class Scheduler {
             const cooldownSec = Math.min(e.retryAfterSec ?? 300, 3600);
             this.cooldownUntil.set(p.id, now + cooldownSec * 1000);
           }
-          const note = e instanceof CredentialError && e.reason === "expired"
-            ? `re-auth in ${p.displayName}`
+          // A 401/403 is almost always the brief window where the CLI's short-lived
+          // token is mid-refresh — calm, self-healing message rather than an alarm.
+          // (It clears automatically on the next successful poll.)
+          const note = e instanceof HttpError && (e.status === 401 || e.status === 403)
+            ? "session expired — auto-refreshing"
             : (e as Error).message;
           this.update(p.id, { state: this.hasData.has(p.id) ? "stale" : "error", note });
         }
