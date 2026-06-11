@@ -36,18 +36,27 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         .icon(app.default_window_icon().expect("bundled icon").clone())
         .menu(&menu)
         .on_menu_event(move |app, event| {
-            let win = app.get_webview_window("main").expect("main window");
             match event.id().as_ref() {
                 "arrange" => {
+                    let Some(win) = app.get_webview_window("main") else { return };
                     let new = !ARRANGING.load(Ordering::SeqCst);
                     ARRANGING.store(new, Ordering::SeqCst);
                     let _ = arrange_c.set_checked(new);
+                    if new {
+                        FLOAT.store(false, Ordering::SeqCst);
+                        let _ = float_c.set_checked(false);
+                    }
                     let _ = crate::desktop_pin::apply_mode(&win, current_mode());
                 }
                 "float" => {
+                    let Some(win) = app.get_webview_window("main") else { return };
                     let new = !FLOAT.load(Ordering::SeqCst);
                     FLOAT.store(new, Ordering::SeqCst);
                     let _ = float_c.set_checked(new);
+                    if new {
+                        ARRANGING.store(false, Ordering::SeqCst);
+                        let _ = arrange_c.set_checked(false);
+                    }
                     let _ = crate::desktop_pin::apply_mode(&win, current_mode());
                 }
                 "refresh" => {
@@ -56,8 +65,10 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
                 "autostart" => {
                     let al = app.autolaunch();
                     let enabled = al.is_enabled().unwrap_or(false);
-                    let _ = if enabled { al.disable() } else { al.enable() };
-                    let _ = autostart_c.set_checked(!enabled);
+                    let result = if enabled { al.disable() } else { al.enable() };
+                    if result.is_ok() {
+                        let _ = autostart_c.set_checked(!enabled);
+                    }
                 }
                 "quit" => app.exit(0),
                 _ => {}
