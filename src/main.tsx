@@ -5,6 +5,7 @@ import { getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
 import { enable as enableAutostart, isEnabled as autostartEnabled } from "@tauri-apps/plugin-autostart";
 import { TauriBridge } from "./bridge/tauri";
 import { Scheduler } from "./core/scheduler";
+import { publishSnapshot } from "./core/snapshot";
 import { hudStore } from "./core/store";
 import { createProviders } from "./providers/registry";
 import App from "./ui/App";
@@ -44,6 +45,17 @@ async function initAutostartDefault() {
   } catch { /* autostart is a nicety; never block startup */ }
 }
 void initAutostartDefault();
+
+// Mirror the store into the App Group snapshot for the WidgetKit widget (debounced, best-effort).
+let snapshotTimer: ReturnType<typeof setTimeout> | undefined;
+hudStore.subscribe((s) => {
+  clearTimeout(snapshotTimer);
+  snapshotTimer = setTimeout(() => {
+    void publishSnapshot(bridge, Object.values(s.providers), Date.now()).catch(() => {
+      /* group container may not exist until the widget host app has run once */
+    });
+  }, 1000);
+});
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode><App /></React.StrictMode>,

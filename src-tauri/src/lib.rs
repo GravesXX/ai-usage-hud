@@ -24,7 +24,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::read_keychain,
             commands::check_processes,
-            commands::get_cli_version
+            commands::get_cli_version,
+            commands::write_group_snapshot
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

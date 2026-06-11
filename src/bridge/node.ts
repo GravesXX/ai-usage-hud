@@ -99,5 +99,10 @@ export class NodeBridge implements NativeBridge {
     await fs.mkdir(this.cacheDir, { recursive: true });
     await fs.writeFile(path.join(this.cacheDir, `cache-${key}.json`), value, "utf8");
   }
+  async writeGroupSnapshot(json: string): Promise<void> {
+    const dir = path.join(os.homedir(), "Library", "Group Containers", "group.com.moomoo.aiusagehud");
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, "usage-snapshot.json"), json, "utf8");
+  }
   async homeDir(): Promise<string> { return os.homedir(); }
 }

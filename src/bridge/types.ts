@@ -16,5 +16,7 @@ export interface NativeBridge {
   getCliVersion(command: "claude" | "codex"): Promise<string | null>;
   readCache(key: string): Promise<string | null>;
   writeCache(key: string, value: string): Promise<void>;
+  /** Write the widget snapshot JSON into the shared App Group container. Best-effort. */
+  writeGroupSnapshot(json: string): Promise<void>;
   homeDir(): Promise<string>;
 }

@@ -7,6 +7,7 @@ export class FakeBridge implements NativeBridge {
   runningProcesses: string[] = [];
   cliVersions: Record<string, string | null> = { claude: "2.1.5", codex: "0.40.0" };
   cache = new Map<string, string>();
+  groupSnapshot: string | null = null;
   home = "/Users/test";
 
   async readKeychain(service: string): Promise<string> {
@@ -36,5 +37,6 @@ export class FakeBridge implements NativeBridge {
   async getCliVersion(command: "claude" | "codex") { return this.cliVersions[command] ?? null; }
   async readCache(key: string) { return this.cache.get(key) ?? null; }
   async writeCache(key: string, value: string) { this.cache.set(key, value); }
+  async writeGroupSnapshot(json: string) { this.groupSnapshot = json; }
   async homeDir() { return this.home; }
 }

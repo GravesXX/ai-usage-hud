@@ -104,3 +104,14 @@ pub fn get_cli_version(command: String) -> Option<String> {
     }
     None
 }
+
+/// Writes the widget snapshot into the shared App Group container.
+/// Group id is fixed and must match the Swift widget's entitlement.
+#[tauri::command]
+pub fn write_group_snapshot(json: String) -> Result<(), String> {
+    const GROUP_ID: &str = "group.com.moomoo.aiusagehud";
+    let home = std::env::var("HOME").map_err(|e| e.to_string())?;
+    let dir = format!("{home}/Library/Group Containers/{GROUP_ID}");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    std::fs::write(format!("{dir}/usage-snapshot.json"), json).map_err(|e| e.to_string())
+}

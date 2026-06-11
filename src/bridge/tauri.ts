@@ -77,5 +77,8 @@ export class TauriBridge implements NativeBridge {
     }
     await writeTextFile(`cache-${key}.json`, value, { baseDir: BaseDirectory.AppData });
   }
+  writeGroupSnapshot(json: string): Promise<void> {
+    return invoke<void>("write_group_snapshot", { json });
+  }
   homeDir(): Promise<string> { return homeDir(); }
 }
