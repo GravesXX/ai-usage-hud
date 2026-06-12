@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { homeDir } from "@tauri-apps/api/path";
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import {
   BaseDirectory, SeekMode, exists, mkdir, open, readDir, readTextFile, stat, writeTextFile,
 } from "@tauri-apps/plugin-fs";
@@ -54,11 +53,14 @@ export class TauriBridge implements NativeBridge {
     await walk(root);
     return results;
   }
-  async fetch(url: string, init: FetchInit): Promise<FetchResult> {
-    const resp = await tauriFetch(url, { method: init.method ?? "GET", headers: init.headers });
-    const headers: Record<string, string> = {};
-    resp.headers.forEach((v, k) => { headers[k.toLowerCase()] = v; });
-    return { status: resp.status, headers, bodyText: await resp.text() };
+  fetch(url: string, init: FetchInit): Promise<FetchResult> {
+    // Go through the Rust reqwest command, not the webview http plugin: the plugin
+    // path was returning 401/403 from api.anthropic.com for an otherwise-valid token.
+    return invoke<FetchResult>("http_request", {
+      url,
+      method: init.method ?? "GET",
+      headers: init.headers ?? {},
+    });
   }
   checkProcesses(queries: ProcQuery[]): Promise<boolean[]> {
     return invoke<boolean[]>("check_processes", { queries });

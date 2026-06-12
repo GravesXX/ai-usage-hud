@@ -115,3 +115,44 @@ pub fn write_group_snapshot(json: String) -> Result<(), String> {
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     std::fs::write(format!("{dir}/usage-snapshot.json"), json).map_err(|e| e.to_string())
 }
+
+use std::collections::HashMap;
+
+#[derive(serde::Serialize)]
+pub struct HttpResponse {
+    status: u16,
+    headers: HashMap<String, String>,
+    #[serde(rename = "bodyText")]
+    body_text: String,
+}
+
+/// Make an HTTPS request from Rust (reqwest), bypassing the webview http plugin.
+/// Egress is allowlisted to the two provider hosts (defense in depth). Only the
+/// status is logged — never tokens or bodies.
+#[tauri::command]
+pub async fn http_request(
+    url: String,
+    method: String,
+    headers: HashMap<String, String>,
+) -> Result<HttpResponse, String> {
+    const ALLOWED: &[&str] = &["https://api.anthropic.com/", "https://chatgpt.com/"];
+    if !ALLOWED.iter().any(|a| url.starts_with(a)) {
+        return Err("host-not-allowed".into());
+    }
+    let client = tauri_plugin_http::reqwest::Client::new();
+    let m = tauri_plugin_http::reqwest::Method::from_bytes(method.as_bytes())
+        .map_err(|e| e.to_string())?;
+    let mut req = client.request(m, &url);
+    for (k, v) in &headers {
+        req = req.header(k.as_str(), v.as_str());
+    }
+    let resp = req.send().await.map_err(|e| e.to_string())?;
+    let status = resp.status().as_u16();
+    eprintln!("[http] {} -> {}", url, status); // status only; no secrets
+    let mut hmap = HashMap::new();
+    for (k, v) in resp.headers().iter() {
+        hmap.insert(k.as_str().to_lowercase(), v.to_str().unwrap_or("").to_string());
+    }
+    let body_text = resp.text().await.map_err(|e| e.to_string())?;
+    Ok(HttpResponse { status, headers: hmap, body_text })
+}

@@ -25,7 +25,8 @@ pub fn run() {
             commands::read_keychain,
             commands::check_processes,
             commands::get_cli_version,
-            commands::write_group_snapshot
+            commands::write_group_snapshot,
+            commands::http_request
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
