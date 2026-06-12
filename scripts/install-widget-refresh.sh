@@ -1,12 +1,14 @@
 #!/bin/zsh
 # Install (or re-install) the headless widget auto-refresh LaunchAgent.
 #
-# Why a bundle outside ~/Desktop: macOS TCC blocks LaunchAgents from reading
-# ~/Desktop, so we esbuild the refresher into one self-contained file under
-# ~/Library/Application Support and run node on that. The agent fetches live
-# usage and writes the App Group snapshot every 10 minutes, with no window.
+# Every 10 minutes (and shortly after wake), with no window, it:
+#   1. fetches live usage and writes the App Group snapshot (Node bundle), then
+#   2. tells WidgetKit to redraw the widget (signed Swift helper).
 #
-# Re-run this after changing provider/snapshot code in src/ (it rebuilds the bundle).
+# Why a bundle/binary outside ~/Desktop: macOS TCC blocks LaunchAgents from
+# reading ~/Desktop, so the runtime artifacts live under ~/Library/Application Support.
+#
+# Re-run this after changing provider/snapshot code in src/ (it rebuilds everything).
 set -e
 
 PROJ="$HOME/Desktop/ai-usage-hud"
@@ -19,12 +21,27 @@ UID_NUM="$(id -u)"
 [ -z "$NODE" ] && { echo "node not found on PATH"; exit 1; }
 mkdir -p "$DEST"
 
-echo "1/3 bundling refresher -> $DEST/refresh.mjs"
+echo "1/5 bundling refresher -> $DEST/refresh.mjs"
 "$PROJ/node_modules/.bin/esbuild" "$PROJ/scripts/spike-write-snapshot.ts" \
   --bundle --platform=node --format=esm --target=node20 \
   --outfile="$DEST/refresh.mjs"
 
-echo "2/3 writing LaunchAgent -> $PLIST"
+echo "2/5 building + signing the WidgetKit reload helper"
+IDENTITY="$(security find-identity -v -p codesigning | grep 'Apple Development' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+[ -z "$IDENTITY" ] && { echo "no 'Apple Development' signing identity found (open Xcode, sign in, build once)"; exit 1; }
+xcrun swiftc "$PROJ/scripts/reload-widget.swift" -o "$DEST/reload-widget"
+codesign --force --sign "$IDENTITY" --entitlements "$PROJ/scripts/reload.entitlements" "$DEST/reload-widget"
+
+echo "3/5 writing run wrapper -> $DEST/run-refresh.sh"
+cat > "$DEST/run-refresh.sh" <<RUNEOF
+#!/bin/zsh
+# Refresh data, then push a redraw to the widget.
+"$NODE" "$DEST/refresh.mjs"
+"$DEST/reload-widget"
+RUNEOF
+chmod +x "$DEST/run-refresh.sh"
+
+echo "4/5 writing LaunchAgent -> $PLIST"
 cat > "$PLIST" <<PLISTEOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -34,8 +51,8 @@ cat > "$PLIST" <<PLISTEOF
     <string>${LABEL}</string>
     <key>ProgramArguments</key>
     <array>
-        <string>${NODE}</string>
-        <string>${DEST}/refresh.mjs</string>
+        <string>/bin/zsh</string>
+        <string>${DEST}/run-refresh.sh</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>
@@ -54,10 +71,9 @@ cat > "$PLIST" <<PLISTEOF
 </plist>
 PLISTEOF
 
-echo "3/3 loading + starting agent"
+echo "5/5 loading + starting agent"
 launchctl bootout "gui/${UID_NUM}/${LABEL}" 2>/dev/null || true
 launchctl bootstrap "gui/${UID_NUM}" "$PLIST"
 launchctl kickstart -k "gui/${UID_NUM}/${LABEL}"
 
-echo "done. Refreshes every 10 min; logs at /tmp/ai-usage-refresh.log"
-echo "Uninstall with: scripts/uninstall-widget-refresh.sh"
+echo "done. Refresh+reload every 10 min; logs at /tmp/ai-usage-refresh.log"
