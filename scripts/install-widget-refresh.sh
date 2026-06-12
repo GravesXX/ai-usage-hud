@@ -1,13 +1,13 @@
 #!/bin/zsh
 # Install (or re-install) the headless widget auto-refresh LaunchAgent.
 #
-# Every 10 minutes (and shortly after wake), with no window, it:
-#   1. fetches live usage and writes the App Group snapshot (Node bundle), then
-#   2. tells WidgetKit to redraw the widget (signed Swift helper).
+# Every 10 minutes (and after wake), with no window and no permission prompts:
+#   1. Node fetches live usage and EMITS the snapshot JSON to stdout (it never
+#      touches the App Group container, so macOS shows no "App Data" prompt), then
+#   2. a signed, app-group-entitled Swift helper (widget-sync) writes that JSON into
+#      the App Group container and tells WidgetKit to redraw.
 #
-# Why a bundle/binary outside ~/Desktop: macOS TCC blocks LaunchAgents from
-# reading ~/Desktop, so the runtime artifacts live under ~/Library/Application Support.
-#
+# Artifacts live under ~/Library/Application Support (LaunchAgents can't read ~/Desktop).
 # Re-run this after changing provider/snapshot code in src/ (it rebuilds everything).
 set -e
 
@@ -21,23 +21,22 @@ UID_NUM="$(id -u)"
 [ -z "$NODE" ] && { echo "node not found on PATH"; exit 1; }
 mkdir -p "$DEST"
 
-echo "1/5 bundling refresher -> $DEST/refresh.mjs"
-"$PROJ/node_modules/.bin/esbuild" "$PROJ/scripts/spike-write-snapshot.ts" \
+echo "1/5 bundling refresher (emits JSON to stdout) -> $DEST/refresh.mjs"
+"$PROJ/node_modules/.bin/esbuild" "$PROJ/scripts/refresh-emit.ts" \
   --bundle --platform=node --format=esm --target=node20 \
   --outfile="$DEST/refresh.mjs"
 
-echo "2/5 building + signing the WidgetKit reload helper"
+echo "2/5 building + signing the app-group writer/reloader (widget-sync)"
 IDENTITY="$(security find-identity -v -p codesigning | grep 'Apple Development' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
 [ -z "$IDENTITY" ] && { echo "no 'Apple Development' signing identity found (open Xcode, sign in, build once)"; exit 1; }
-xcrun swiftc "$PROJ/scripts/reload-widget.swift" -o "$DEST/reload-widget"
-codesign --force --sign "$IDENTITY" --entitlements "$PROJ/scripts/reload.entitlements" "$DEST/reload-widget"
+xcrun swiftc "$PROJ/scripts/widget-sync.swift" -o "$DEST/widget-sync"
+codesign --force --sign "$IDENTITY" --entitlements "$PROJ/scripts/reload.entitlements" "$DEST/widget-sync"
 
 echo "3/5 writing run wrapper -> $DEST/run-refresh.sh"
 cat > "$DEST/run-refresh.sh" <<RUNEOF
 #!/bin/zsh
-# Refresh data, then push a redraw to the widget.
-"$NODE" "$DEST/refresh.mjs"
-"$DEST/reload-widget"
+# Node emits JSON; the signed helper does the protected write + widget redraw.
+"$NODE" "$DEST/refresh.mjs" | "$DEST/widget-sync"
 RUNEOF
 chmod +x "$DEST/run-refresh.sh"
 
@@ -76,4 +75,4 @@ launchctl bootout "gui/${UID_NUM}/${LABEL}" 2>/dev/null || true
 launchctl bootstrap "gui/${UID_NUM}" "$PLIST"
 launchctl kickstart -k "gui/${UID_NUM}/${LABEL}"
 
-echo "done. Refresh+reload every 10 min; logs at /tmp/ai-usage-refresh.log"
+echo "done. Refresh+write+reload every 10 min; logs at /tmp/ai-usage-refresh.log"
